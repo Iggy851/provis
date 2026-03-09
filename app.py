@@ -15,16 +15,6 @@ EMAIL_EMISOR = st.secrets.get("EMAIL_EMISOR", "")
 EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
 EMAIL_RECEPTOR = "correo@gestorianogales.com"
 
-CONCESIONARIOS = [
-    "SELECCIONA TU CONCESIONARIO",
-    "CONCESIONARIO CENTRO",
-    "CONCESIONARIO NORTE",
-    "CONCESIONARIO SUR",
-    "MOTOR BADAJOZ",
-    "VEHÍCULOS MÉRIDA",
-    "OTROS"
-]
-
 PROVINCIAS = {
     "ALAVA": "VI", "ALBACETE": "AB", "ALICANTE": "A", "ALMERIA": "AL", "ASTURIAS": "O", "AVILA": "AV",
     "BADAJOZ": "BA", "BALEARES": "PM", "BARCELONA": "B", "BURGOS": "BU", "CACERES": "CC", "CADIZ": "CA",
@@ -47,7 +37,7 @@ def enviar_email(archivo_nombre, contenido_xml, datos_usuario):
     
     DATOS DEL SOLICITANTE:
     --------------------------
-    Concesionario: {datos_usuario['concesionario']}
+    Concesionario/Empresa: {datos_usuario['concesionario']}
     Email de contacto: {datos_usuario['email_usuario']}
     Fecha/Hora: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
     --------------------------
@@ -79,11 +69,12 @@ st.title("📄 PROVISIONALES GESTORIA NOGALES")
 st.subheader("Acceso Solicitante")
 col1, col2 = st.columns(2)
 with col1:
-    concesionario_sel = st.selectbox("Tu Concesionario", CONCESIONARIOS)
+    # Cambio de selectbox a text_input para texto libre
+    concesionario_sel = st.text_input("Tu Concesionario / Empresa").upper()
 with col2:
     email_usuario = st.text_input("Tu Email de contacto").lower()
 
-if concesionario_sel != "SELECCIONA TU CONCESIONARIO" and email_usuario:
+if concesionario_sel and email_usuario:
     st.divider()
     
     st.subheader("1. Identificación del Adquirente")
@@ -167,6 +158,6 @@ if concesionario_sel != "SELECCIONA TU CONCESIONARIO" and email_usuario:
                     </FORMATO_GA>"""
                     
                     if enviar_email(f"justificante_{matricula}.ga.xml", xml_content, datos_solicitante):
-                        st.success(f"✅ ¡Enviado! Concesionario: {concesionario_sel}")
+                        st.success(f"✅ ¡Enviado! Solicitado por: {concesionario_sel}")
 else:
-    st.warning("Por favor, identifica tu concesionario y email para empezar.")
+    st.warning("Por favor, introduce tu nombre de Concesionario/Empresa y Email para empezar.")
