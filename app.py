@@ -4,31 +4,35 @@ import random
 import unicodedata
 
 def limpiar_texto(texto):
-    # Elimina tildes y caracteres especiales para evitar errores de codificación
     texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
     return texto.upper()
 
-st.set_page_config(page_title="Gestoría Nogales - Test Final", layout="wide")
-st.title("🚗 MÓDULO MATRICULACIONES (Test 6)")
+st.set_page_config(page_title="Gestoría Nogales - Matriculaciones", layout="wide")
+st.title("🚗 MÓDULO DE MATRICULACIONES")
+
+# Inicializar estado para guardar el XML
+if 'xml_data' not in st.session_state:
+    st.session_state['xml_data'] = None
+    st.session_state['nombre_archivo'] = None
 
 with st.form("form_matri_final"):
-    # Campos obligatorios con validación manual
     bastidor = st.text_input("Bastidor (17 caracteres)").upper()
     dni = st.text_input("DNI (Ej: 12345678X)")
-    nombre = st.text_input("Nombre / Razon Social")
+    nombre = st.text_input("Nombre / Razón Social")
     calle = st.text_input("Calle")
-    prov = st.text_input("Provincia (2 letras, ej: BA)")
+    prov = st.text_input("Provincia (Ej: BA)")
     muni = st.text_input("Municipio")
     cp = st.text_input("CP")
-    muni_ine = st.text_input("Codigo INE (5 dígitos)")
+    muni_ine = st.text_input("Código INE (5 dígitos)")
 
-    if st.form_submit_button("GENERAR Y DESCARGAR"):
-        # Limpieza de caracteres
-        n_limpio = limpiar_texto(nombre)
-        fecha = datetime.now().strftime("%d/%m/%Y")
-        
-        # Generación del XML sin caracteres extraños
-        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+    # Al pulsar el botón, guardamos en la sesión, NO descargamos
+    submitted = st.form_submit_button("GENERAR DATOS")
+
+if submitted:
+    n_limpio = limpiar_texto(nombre)
+    fecha = datetime.now().strftime("%d/%m/%Y")
+    
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
         <JEFATURA>BA</JEFATURA>
@@ -63,5 +67,16 @@ with st.form("form_matri_final"):
         <NUMERO_DOCUMENTO>sg-08469aee8de43bf0</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
-        
-        st.download_button("DESCARGAR XML", xml_content, f"matricula_{bastidor}.ga.xml", mime="text/xml")
+    
+    st.session_state['xml_data'] = xml_content
+    st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
+
+# El botón de descarga va FUERA del formulario
+if st.session_state['xml_data']:
+    st.success("✅ Datos generados correctamente.")
+    st.download_button(
+        "⬇️ DESCARGAR .GA.XML", 
+        st.session_state['xml_data'], 
+        st.session_state['nombre_archivo'], 
+        mime="text/xml"
+    )
