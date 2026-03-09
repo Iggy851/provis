@@ -17,11 +17,10 @@ if 'xml_generado' not in st.session_state:
     st.session_state['xml_generado'] = None
     st.session_state['nombre_archivo'] = None
 
-# Sidebar navegación
 opcion = st.sidebar.radio("Selecciona el trámite:", ["MATRICULACIONES", "PROVISIONALES"])
 
 # ==========================================
-# 1. MATRICULACIONES
+# 1. MATRICULACIONES (Estructura XML corregida)
 # ==========================================
 if opcion == "MATRICULACIONES":
     st.header("Solicitud de Matriculación")
@@ -30,8 +29,7 @@ if opcion == "MATRICULACIONES":
         col1, col2 = st.columns(2)
         bastidor = col1.text_input("Bastidor (VIN)").upper()
         
-        # Selección de tipo de titular
-        tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
+        tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True, key="m_tipo")
         dni_input = st.text_input("DNI / CIF (Solo números)")
         
         if tipo_titular == "Persona Física":
@@ -49,12 +47,10 @@ if opcion == "MATRICULACIONES":
         nombre_muni, cod_ine, cp = muni_data
 
         if st.form_submit_button("Generar XML Matriculación"):
-            # Limpieza: solo números para el XML
             dni_limpio = "".join(filter(str.isdigit, dni_input))
             fecha = datetime.now().strftime("%d/%m/%Y")
             nombre_xml = f"{nombre} {ape1} {ape2}".strip() if tipo_titular == "Persona Física" else nombre
             
-            # XML ajustado para evitar el error "Núm doc (1)"
             xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
@@ -100,7 +96,7 @@ elif opcion == "PROVISIONALES":
     st.header("Generación de Justificante Provisional")
     
     with st.form("form_prov"):
-        tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
+        tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True, key="p_tipo")
         
         if tipo_titular == "Persona Física":
             col_p1, col_p2, col_p3 = st.columns(3)
@@ -111,6 +107,5 @@ elif opcion == "PROVISIONALES":
             st.text_input("Razón Social")
         
         matricula = st.text_input("Matrícula").upper()
-        
         if st.form_submit_button("Generar Provisional"):
             st.info(f"Módulo de provisionales activo para: {matricula}")
