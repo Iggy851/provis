@@ -1,163 +1,87 @@
 import streamlit as st
-import xml.etree.ElementTree as ET
 from datetime import datetime
 import random
-import re
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-from email.header import Header
-from email.mime.text import MIMEText
 
 # --- CONFIGURACIÓN ---
-EMAIL_EMISOR = st.secrets.get("EMAIL_EMISOR", "")
-EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
-EMAIL_RECEPTOR = "correo@gestorianogales.com"
-
-PROVINCIAS = {
-    "ALAVA": "VI", "ALBACETE": "AB", "ALICANTE": "A", "ALMERIA": "AL", "ASTURIAS": "O", "AVILA": "AV",
-    "BADAJOZ": "BA", "BALEARES": "PM", "BARCELONA": "B", "BURGOS": "BU", "CACERES": "CC", "CADIZ": "CA",
-    "CANTABRIA": "S", "CASTELLON": "CS", "CIUDAD REAL": "CR", "CORDOBA": "CO", "CORUÑA": "C", "CUENCA": "CU",
-    "GIRONA": "GI", "GRANADA": "GR", "GUADALAJARA": "GU", "GUIPUZCOA": "SS", "HUELVA": "H", "HUESCA": "HU",
-    "JAEN": "J", "LEON": "LE", "LLEIDA": "L", "LUGO": "LU", "MADRID": "M", "MALAGA": "MA", "MURCIA": "MU",
-    "NAVARRA": "NA", "OURENSE": "OU", "PALENCIA": "P", "PONTEVEDRA": "PO", "LA RIOJA": "LO", "SALAMANCA": "SA",
-    "SEGOVIA": "SG", "SEVILLA": "SE", "SORIA": "SO", "TARRAGONA": "T", "TERUEL": "TE", "TOLEDO": "TO",
-    "VALENCIA": "V", "VALLADOLID": "VA", "VIZCAYA": "BI", "ZAMORA": "ZA", "ZARAGOZA": "Z", "CEUTA": "CE", "MELILLA": "ML"
+PROVINCIAS = {"BA": "BADAJOZ", "MA": "MADRID", "SE": "SEVILLA"} 
+MUNICIPIOS = {
+    "BA": [("BADAJOZ", "06015", "06005")],
+    "MA": [("MADRID", "28079", "28001")],
+    "SE": [("SEVILLA", "41091", "41001")]
 }
 
-def enviar_email(archivo_nombre, contenido_xml, datos_usuario):
-    msg = MIMEMultipart()
-    msg['From'] = EMAIL_EMISOR
-    msg['To'] = EMAIL_RECEPTOR
-    msg['Subject'] = Header(f"Nuevo Justificante GA - {archivo_nombre}", 'utf-8')
+st.set_page_config(page_title="Gestoría Nogales - Matriculaciones", layout="wide")
+st.title("🚗 MÓDULO DE MATRICULACIONES")
+
+if 'xml_generado' not in st.session_state:
+    st.session_state['xml_generado'] = None
+    st.session_state['nombre_archivo'] = None
+
+with st.form("form_matri_pro"):
+    col1, col2 = st.columns(2)
+    bastidor = col1.text_input("Bastidor (VIN)").upper()
     
-    cuerpo = f"""
-    Se ha generado un nuevo justificante provisional.
+    tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
+    dni_input = st.text_input("DNI / CIF (Solo números)")
     
-    DATOS DEL SOLICITANTE:
-    --------------------------
-    Concesionario/Empresa: {datos_usuario['concesionario']}
-    Email de contacto: {datos_usuario['email_usuario']}
-    Fecha/Hora: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
-    --------------------------
-    """
-    msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
+    if tipo_titular == "Persona Física":
+        c_nom, c_ap1, c_ap2 = st.columns(3)
+        nombre = c_nom.text_input("Nombre")
+        ape1 = c_ap1.text_input("1er Apellido")
+        ape2 = c_ap2.text_input("2do Apellido")
+    else:
+        nombre = st.text_input("Razón Social")
+        ape1, ape2 = "", ""
+        
+    calle = st.text_input("Calle")
+    prov_sel = st.selectbox("Provincia", list(PROVINCIAS.keys()))
+    muni_data = st.selectbox("Municipio", MUNICIPIOS.get(prov_sel, []))
+    nombre_muni, cod_ine, cp = muni_data
 
-    part = MIMEBase('application', "octet-stream")
-    part.set_payload(contenido_xml.encode('utf-8'))
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename="{archivo_nombre}"')
-    msg.attach(part)
-    
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
-        server.sendmail(EMAIL_EMISOR, EMAIL_RECEPTOR, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        st.error(f"Error al enviar el email: {e}")
-        return False
+    if st.form_submit_button("Generar XML"):
+        dni_limpio = "".join(filter(str.isdigit, dni_input))
+        fecha = datetime.now().strftime("%d/%m/%Y")
+        nombre_xml = f"{nombre} {ape1} {ape2}".strip() if tipo_titular == "Persona Física" else nombre
+        
+        # XML basado en la estructura de tu archivo funcional
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<FORMATO_GA>
+    <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
+        <JEFATURA>BA</JEFATURA>
+        <SUCURSAL/>
+        <NUMERO_PROFESIONAL>00292</NUMERO_PROFESIONAL>
+        <FECHA_PRESENTACION>{fecha}</FECHA_PRESENTACION>
+        <NUMERO_EXPEDIENTE>SIGA.{random.randint(1000000, 9999999)}</NUMERO_EXPEDIENTE>
+        <DATOS_VEHICULO>
+            <FABRICACION_ITV/>
+            <FECHA_MATRICULACION>{fecha}</FECHA_MATRICULACION>
+            <NIVE/>
+            <NUMERO_BASTIDOR>{bastidor}</NUMERO_BASTIDOR>
+            <DIRECCION_VEHICULO>
+                <PROVINCIA_VEHICULO>{prov_sel}</PROVINCIA_VEHICULO>
+                <MUNICIPIO_VEHICULO>{nombre_muni}</MUNICIPIO_VEHICULO>
+                <CP_VEHICULO>{cp}</CP_VEHICULO>
+                <DOMICILIO_VEHICULO>{calle}</DOMICILIO_VEHICULO>
+                <MUNICIPIO_VEHICULO_INE>{cod_ine}</MUNICIPIO_VEHICULO_INE>
+                <TIPO_VIA_DIRECCION_VEHICULO>CALLE</TIPO_VIA_DIRECCION_VEHICULO>
+            </DIRECCION_VEHICULO>
+        </DATOS_VEHICULO>
+        <DATOS_TITULAR>
+            <DNI_TITULAR>{dni_limpio}</DNI_TITULAR>
+            <NOMBRE_TITULAR>{nombre_xml}</NOMBRE_TITULAR>
+            <DIRECCION_TITULAR>
+                <PROVINCIA_TITULAR>{prov_sel}</PROVINCIA_TITULAR>
+                <MUNICIPIO_TITULAR>{nombre_muni}</MUNICIPIO_TITULAR>
+                <CP_TITULAR>{cp}</CP_TITULAR>
+                <NOMBRE_VIA_DIRECCION_TITULAR>{calle}</NOMBRE_VIA_DIRECCION_TITULAR>
+            </DIRECCION_TITULAR>
+        </DATOS_TITULAR>
+        <NUMERO_DOCUMENTO>sg-08469aee8de43bf0</NUMERO_DOCUMENTO>
+    </MATRICULACION>
+</FORMATO_GA>"""
+        st.session_state['xml_generado'] = xml_content
+        st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Gestoría Nogales", page_icon="📄")
-st.title("📄 PROVISIONALES GESTORIA NOGALES")
-
-# --- ACCESO SOLICITANTE ---
-st.subheader("Acceso Solicitante")
-col1, col2 = st.columns(2)
-with col1:
-    # Cambio de selectbox a text_input para texto libre
-    concesionario_sel = st.text_input("Tu Concesionario / Empresa").upper()
-with col2:
-    email_usuario = st.text_input("Tu Email de contacto").lower()
-
-if concesionario_sel and email_usuario:
-    st.divider()
-    
-    st.subheader("1. Identificación del Adquirente")
-    doc = st.text_input("Introduce NIF / CIF / NIE y pulsa INTRO").upper().replace(" ", "").replace("-", "")
-
-    nombre, ape1, ape2, razon_social, tipo_sujeto = "", "", "", "", None
-
-    if doc:
-        if re.match(r"^[0-9XYZ][0-9]{7}[A-Z]$", doc):
-            tipo_sujeto = "PERSONA"
-            st.info("Detectado: Persona Física / NIE")
-            nombre = st.text_input("Nombre").upper()
-            ape1 = st.text_input("Primer Apellido").upper()
-            ape2 = st.text_input("Segundo Apellido").upper()
-        elif re.match(r"^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$", doc):
-            tipo_sujeto = "EMPRESA"
-            st.info("Detectado: Empresa (CIF)")
-            razon_social = st.text_input("Razón Social").upper()
-        else:
-            st.error("Formato de documento no válido.")
-
-    if (tipo_sujeto == "PERSONA" and nombre) or (tipo_sujeto == "EMPRESA" and razon_social):
-        with st.form("resto_formulario"):
-            st.subheader("2. Dirección")
-            calle = st.text_input("Calle / Vía").upper()
-            num_dir = st.text_input("Número")
-            municipio = st.text_input("Municipio").upper()
-            prov_input = st.selectbox("Provincia", list(PROVINCIAS.keys()))
-            cp = st.text_input("Código Postal (5 dígitos)")
-
-            st.subheader("3. Vehículo")
-            matricula = st.text_input("Matrícula").upper().replace(" ", "")
-            bastidor_completo = st.text_input("Bastidor (4 últimos dígitos opcional)")
-            marca = st.text_input("Marca").upper()
-            modelo = st.text_input("Modelo").upper()
-
-            enviado = st.form_submit_button("Generar y Enviar")
-
-            if enviado:
-                if not calle or not num_dir or not municipio or not cp or not matricula or not marca or not modelo:
-                    st.error("Por favor, rellena todos los campos.")
-                elif len(cp) != 5 or not cp.isdigit():
-                    st.error("El Código Postal debe tener 5 números.")
-                else:
-                    datos_solicitante = {"concesionario": concesionario_sel, "email_usuario": email_usuario}
-                    
-                    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-                    <FORMATO_GA>
-                        <JUSTIFICANTE>
-                            <JEFATURA>BA</JEFATURA>
-                            <SUCURSAL/>
-                            <NUMERO_PROFESIONAL>00292</NUMERO_PROFESIONAL>
-                            <FECHA_PRESENTACION>{datetime.now().strftime("%d/%m/%Y")}</FECHA_PRESENTACION>
-                            <NUMERO_EXPEDIENTE>SIGA.{random.randint(1000000, 9999999)}</NUMERO_EXPEDIENTE>
-                            <DIAS_VALIDEZ>30</DIAS_VALIDEZ>
-                            <DOCUMENTOS>CAMBIO TITULAR</DOCUMENTOS>
-                            <TIPO_TRAMITE>TRANSFERENCIA</TIPO_TRAMITE>
-                            <MOTIVO>OTROS</MOTIVO>
-                            <DATOS_ADQUIRENTE>
-                                <SEXO_ADQUIRENTE/>
-                                <RAZON_SOCIAL_ADQUIRENTE>{razon_social}</RAZON_SOCIAL_ADQUIRENTE>
-                                <NOMBRE_ADQUIRENTE>{nombre}</NOMBRE_ADQUIRENTE>
-                                <APELLIDO1_ADQUIRENTE>{ape1}</APELLIDO1_ADQUIRENTE>
-                                <APELLIDO2_ADQUIRENTE>{ape2}</APELLIDO2_ADQUIRENTE>
-                                <DNI_ADQUIRENTE>{doc}</DNI_ADQUIRENTE>
-                                <SIGLAS_DIRECCION_ADQUIRENTE>6</SIGLAS_DIRECCION_ADQUIRENTE>
-                                <NOMBRE_VIA_DIRECCION_ADQUIRENTE>{calle}</NOMBRE_VIA_DIRECCION_ADQUIRENTE>
-                                <NUMERO_DIRECCION_ADQUIRENTE>{num_dir}</NUMERO_DIRECCION_ADQUIRENTE>
-                                <MUNICIPIO_ADQUIRENTE>{municipio}</MUNICIPIO_ADQUIRENTE>
-                                <PROVINCIA_ADQUIRENTE>{PROVINCIAS[prov_input]}</PROVINCIA_ADQUIRENTE>
-                                <CP_ADQUIRENTE>{cp}</CP_ADQUIRENTE>
-                                <MUNICIPIO_ADQUIRENTE_INE>06044</MUNICIPIO_ADQUIRENTE_INE>
-                            </DATOS_ADQUIRENTE>
-                            <DATOS_VEHICULO>
-                                <MATRICULA>{matricula}</MATRICULA>
-                                <NUMERO_BASTIDOR>{bastidor_completo[-4:] if bastidor_completo else ""}</NUMERO_BASTIDOR>
-                                <MARCA>{marca}</MARCA>
-                                <MODELO>{modelo}</MODELO>
-                            </DATOS_VEHICULO>
-                        </JUSTIFICANTE>
-                    </FORMATO_GA>"""
-                    
-                    if enviar_email(f"justificante_{matricula}.ga.xml", xml_content, datos_solicitante):
-                        st.success(f"✅ ¡Enviado! Solicitado por: {concesionario_sel}")
-else:
-    st.warning("Por favor, introduce tu nombre de Concesionario/Empresa y Email para empezar.")
+if st.session_state['xml_generado']:
+    st.success("✅ Archivo listo.")
+    st.download_button("⬇️ Descargar .ga.xml", st.session_state['xml_generado'], st.session_state['nombre_archivo'], mime="text/xml")
