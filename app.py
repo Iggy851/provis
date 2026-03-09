@@ -3,49 +3,45 @@ from datetime import datetime
 import random
 
 # Configuración de página
-st.set_page_config(page_title="Gestoría Nogales - Generador .ga.xml", layout="wide")
+st.set_page_config(page_title="Gestoría Nogales - Test .ga.xml", layout="wide")
 
-st.title("🚗 Generador XML para Matriculaciones")
-st.info("Instrucciones: 1. Rellena los datos. 2. Pulsa 'PREPARAR'. 3. Pulsa el botón azul de 'DESCARGAR' que aparecerá abajo.")
+st.title("🚗 Generador XML (Con Datos de Prueba)")
 
-# 1. INICIALIZAR ESTADO (Para que no se borre al recargar)
+# 1. INICIALIZAR ESTADO
 if 'xml_data' not in st.session_state:
     st.session_state.xml_data = None
 if 'archivo_nombre' not in st.session_state:
     st.session_state.archivo_nombre = None
 
-# 2. FORMULARIO
+# 2. FORMULARIO CON DATOS RELLENOS (Defaults)
 with st.form("form_matriculacion"):
     c1, c2 = st.columns(2)
     with c1:
-        bastidor = st.text_input("Bastidor (VIN)").upper()
-        nif = st.text_input("NIF Titular")
-        nombre = st.text_input("Nombre / Razón Social")
-        apellido1 = st.text_input("1er Apellido (vacío si es Empresa)")
-        apellido2 = st.text_input("2do Apellido (vacío si es Empresa)")
+        # He puesto los datos exactos de uno de tus archivos que funcionan
+        bastidor = st.text_input("Bastidor (VIN)", value="UU1DJF00576399771").upper()
+        nif = st.text_input("NIF Titular", value="09208671T")
+        nombre = st.text_input("Nombre / Razón Social", value="ISABEL")
+        apellido1 = st.text_input("1er Apellido", value="GONZALEZ")
+        apellido2 = st.text_input("2do Apellido", value="LOPEZ")
     
     with c2:
-        municipio = st.text_input("Municipio")
-        cp = st.text_input("CP")
-        via = st.text_input("Calle/Vía")
-        nive = st.text_input("NIVE (si lo tienes)")
-        tipo_t = st.radio("Tipo Titular", ["Persona Física", "Empresa"])
+        municipio = st.text_input("Municipio", value="MONTIJO")
+        cp = st.text_input("CP", value="06480")
+        via = st.text_input("Calle/Vía", value="NAVA")
+        nive = st.text_input("NIVE", value="4F15E5D9285E4694B24A1122DB5A40B6")
+        tipo_t = st.radio("Tipo Titular", ["Persona Física", "Empresa"], index=0)
 
-    # El botón del formulario SOLO activa el procesamiento
     submit = st.form_submit_button("PREPARAR ARCHIVO")
 
 # 3. LÓGICA DE GENERACIÓN
 if submit:
-    if not bastidor or not nif:
-        st.error("El Bastidor y el NIF son obligatorios.")
-    else:
-        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        num_exp = f"SIGA.{random.randint(8000000, 8999999)}"
-        num_doc = f"sg-{random.getrandbits(64):016x}"
-        sexo = "H" if tipo_t == "Persona Física" else "X"
-        
-        # Estructura de alta compatibilidad (basada en tus archivos)
-        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+    num_exp = f"SIGA.{random.randint(8000000, 8999999)}"
+    num_doc = f"sg-{random.getrandbits(64):016x}"
+    sexo = "H" if tipo_t == "Persona Física" else "X"
+    
+    # Estructura idéntica a tus archivos originales
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Procesar05_06="0" Procesar576="1" Version="1.0">
         <JEFATURA>BA</JEFATURA>
@@ -53,13 +49,14 @@ if submit:
         <FECHA_PRESENTACION>{fecha_hoy}</FECHA_PRESENTACION>
         <NUMERO_EXPEDIENTE>{num_exp}</NUMERO_EXPEDIENTE>
         <DATOS_VEHICULO>
+            <FABRICACION_ITV>IM</FABRICACION_ITV>
             <FECHA_MATRICULACION>{fecha_hoy}</FECHA_MATRICULACION>
             <TIPO_INSPECCION_ITV>M</TIPO_INSPECCION_ITV>
             <NUEVO>SI</NUEVO>
             <USADO>NO</USADO>
             <PROCEDENCIA_VEHICULO>0</PROCEDENCIA_VEHICULO>
             <FICHAELECTRONICA>SI</FICHAELECTRONICA>
-            <NIVE>{nive if nive else ""}</NIVE>
+            <NIVE>{nive}</NIVE>
             <NUMERO_BASTIDOR>{bastidor}</NUMERO_BASTIDOR>
             <DATOS_COMBUSTIBLE>
                 <EMISION_CO2>116000</EMISION_CO2>
@@ -103,16 +100,15 @@ if submit:
     </MATRICULACION>
 </FORMATO_GA>"""
         
-        # Guardamos en el estado para que sobreviva a la recarga
-        st.session_state.xml_data = xml_content
-        st.session_state.archivo_nombre = f"matricula_{bastidor}.ga.xml"
+    st.session_state.xml_data = xml_content
+    st.session_state.archivo_nombre = f"matricula_{bastidor}.ga.xml"
 
-# 4. BOTÓN DE DESCARGA REAL (Siempre fuera del formulario)
+# 4. BOTÓN DE DESCARGA
 if st.session_state.xml_data:
     st.divider()
-    st.success(f"✅ Archivo '{st.session_state.archivo_nombre}' listo para descargar.")
+    st.success(f"✅ Archivo preparado.")
     st.download_button(
-        label="⬇️ DESCARGAR AHORA (.ga.xml)",
+        label=f"⬇️ DESCARGAR {st.session_state.archivo_nombre}",
         data=st.session_state.xml_data,
         file_name=st.session_state.archivo_nombre,
         mime="text/xml"
