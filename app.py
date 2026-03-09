@@ -2,32 +2,24 @@ import streamlit as st
 from datetime import datetime
 import random
 
-st.set_page_config(page_title="Gestoría Nogales - Matriculaciones", layout="wide")
-st.title("🚗 MÓDULO DE MATRICULACIONES (Simplificado)")
+st.set_page_config(page_title="Gestoría Nogales - Test Definitivo", layout="wide")
+st.title("🚗 MÓDULO DE MATRICULACIONES (Test 5)")
 
-if 'xml_generado' not in st.session_state:
-    st.session_state['xml_generado'] = None
-    st.session_state['nombre_archivo'] = None
-
-with st.form("form_matri_simple"):
-    col1, col2 = st.columns(2)
-    bastidor = col1.text_input("Bastidor (VIN)").upper()
-    dni = col2.text_input("DNI / CIF (Solo números)")
-    
+with st.form("form_matri_test"):
+    bastidor = st.text_input("Bastidor (17 caracteres obligatorios)").upper()
+    dni = st.text_input("DNI (Formato 12345678A)")
     nombre = st.text_input("Nombre / Razón Social")
-    calle = st.text_input("Calle / Domicilio")
-    
-    col3, col4, col5 = st.columns(3)
-    prov = col3.text_input("Provincia (Ej: BA)")
-    muni = col4.text_input("Municipio")
-    cp = col5.text_input("CP")
-    
-    muni_ine = st.text_input("Municipio INE (Código 5 dígitos)")
+    calle = st.text_input("Calle")
+    prov = st.text_input("Provincia (Ej: BA)")
+    muni = st.text_input("Municipio")
+    cp = st.text_input("CP")
+    muni_ine = st.text_input("Código INE (5 dígitos)")
 
-    if st.form_submit_button("Generar XML Simplificado"):
+    if st.form_submit_button("Generar XML (Nuevo ID)"):
         fecha = datetime.now().strftime("%d/%m/%Y")
+        # Generar un ID nuevo completamente aleatorio cada vez
+        nuevo_id = f"sg-{random.getrandbits(64):x}"
         
-        # Estructura mínima necesaria que detectamos en el archivo funcional
         xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
@@ -60,13 +52,8 @@ with st.form("form_matri_simple"):
                 <NOMBRE_VIA_DIRECCION_TITULAR>{calle}</NOMBRE_VIA_DIRECCION_TITULAR>
             </DIRECCION_TITULAR>
         </DATOS_TITULAR>
-        <NUMERO_DOCUMENTO>sg-08469aee8de43bf0</NUMERO_DOCUMENTO>
+        <NUMERO_DOCUMENTO>{nuevo_id}</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
         
-        st.session_state['xml_generado'] = xml_content
-        st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
-
-if st.session_state['xml_generado']:
-    st.success("✅ Archivo generado.")
-    st.download_button("⬇️ Descargar .ga.xml", st.session_state['xml_generado'], st.session_state['nombre_archivo'], mime="text/xml")
+        st.download_button("Descargar .ga.xml", xml_content, f"matricula_{bastidor}.ga.xml", mime="text/xml")
