@@ -1,166 +1,108 @@
 import streamlit as st
 from datetime import datetime
 import random
-import re
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-from email.header import Header
-from email.mime.text import MIMEText
 
-# --- CONFIGURACIÓN ---
-EMAIL_EMISOR = st.secrets.get("EMAIL_EMISOR", "")
-EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
-EMAIL_RECEPTOR = "correo@gestorianogales.com"
-
-PROVINCIAS = {
-    "ALAVA": "VI", "ALBACETE": "AB", "ALICANTE": "A", "ALMERIA": "AL", "ASTURIAS": "O", "AVILA": "AV",
-    "BADAJOZ": "BA", "BALEARES": "PM", "BARCELONA": "B", "BURGOS": "BU", "CACERES": "CC", "CADIZ": "CA",
-    "CANTABRIA": "S", "CASTELLON": "CS", "CIUDAD REAL": "CR", "CORDOBA": "CO", "CORUÑA": "C", "CUENCA": "CU",
-    "GIRONA": "GI", "GRANADA": "GR", "GUADALAJARA": "GU", "GUIPUZCOA": "SS", "HUELVA": "H", "HUESCA": "HU",
-    "JAEN": "J", "LEON": "LE", "LLEIDA": "L", "LUGO": "LU", "MADRID": "M", "MALAGA": "MA", "MURCIA": "MU",
-    "NAVARRA": "NA", "OURENSE": "OU", "PALENCIA": "P", "PONTEVEDRA": "PO", "LA RIOJA": "LO", "SALAMANCA": "SA",
-    "SEGOVIA": "SG", "SEVILLA": "SE", "SORIA": "SO", "TARRAGONA": "T", "TERUEL": "TE", "TOLEDO": "TO",
-    "VALENCIA": "V", "VALLADOLID": "VA", "VIZCAYA": "BI", "ZAMORA": "ZA", "ZARAGOZA": "Z", "CEUTA": "CE", "MELILLA": "ML"
+# --- CONFIGURACIÓN DE DATOS (Optimizado) ---
+# En un futuro, estos datos vendrán de una base de datos o JSON externo
+PROVINCIAS = {"BA": "BADAJOZ", "MA": "MADRID", "SE": "SEVILLA"} 
+MUNICIPIOS = {
+    "BA": [("BADAJOZ", "06015", "06005")],
+    "MA": [("MADRID", "28079", "28001")],
+    "SE": [("SEVILLA", "41091", "41001")]
 }
 
-def enviar_email(archivo_nombre, contenido_xml, datos_usuario, tipo_tramite):
-    msg = MIMEMultipart()
-    msg['From'] = EMAIL_EMISOR
-    msg['To'] = EMAIL_RECEPTOR
-    msg['Subject'] = Header(f"{tipo_tramite.upper()} - {archivo_nombre}", 'utf-8')
-    cuerpo = f"Nuevo trámite de {tipo_tramite}\nSolicitante: {datos_usuario['concesionario']}\nEmail: {datos_usuario['email_usuario']}"
-    msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
-    part = MIMEBase('application', "octet-stream")
-    part.set_payload(contenido_xml.encode('utf-8'))
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename="{archivo_nombre}"')
-    msg.attach(part)
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(EMAIL_EMISOR, EMAIL_PASSWORD)
-        server.sendmail(EMAIL_EMISOR, EMAIL_RECEPTOR, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        st.error(f"Error al enviar: {e}")
-        return False
-
-# --- INTERFAZ ---
-st.set_page_config(page_title="Gestoría Nogales", page_icon="📄")
+st.set_page_config(page_title="Gestoría Nogales - Trámites", layout="wide")
 st.title("📂 GESTORÍA NOGALES - PORTAL DE TRÁMITES")
 
-# ACCESO
-col_acc1, col_acc2 = st.columns(2)
-conc_sol = col_acc1.text_input("Concesionario / Empresa").upper()
-email_sol = col_acc2.text_input("Email de contacto").lower()
+# --- MENÚ PRINCIPAL ---
+opcion = st.sidebar.radio("Selecciona el trámite:", ["PROVISIONALES", "MATRICULACIONES"])
+st.sidebar.divider()
 
-if conc_sol and email_sol:
-    st.divider()
-    opcion = st.radio("Seleccione el trámite:", ["MATRICULACIÓN", "PROVISIONAL"], horizontal=True)
-    st.divider()
+# ==========================================
+# 1. TRÁMITE DE PROVISIONALES
+# ==========================================
+if opcion == "PROVISIONALES":
+    st.header("Generación de Justificante Provisional")
+    with st.form("form_prov"):
+        # (Aquí mantienes tu lógica actual de provisionales)
+        st.write("Formulario de Provisionales activo.")
+        if st.form_submit_button("Generar Provisional"):
+            st.success("Provisional generado.")
 
-    if opcion == "MATRICULACIÓN":
-        with st.form("form_matri_completo"):
-            # 1. DATOS BÁSICOS
-            st.subheader("1. Datos Básicos del Vehículo")
-            c1, c2, c3 = st.columns(3)
-            bastidor = c1.text_input("Bastidor (VIN)").upper()
-            nive = c2.text_input("NIVE").upper()
-            itv_fab = c3.text_input("Fabricación ITV").upper()
+# ==========================================
+# 2. TRÁMITE DE MATRICULACIONES
+# ==========================================
+else:
+    st.header("Solicitud de Matriculación")
+    with st.form("form_matri_completo"):
+        # Sección 1: Vehículo
+        st.subheader("1. Datos del Vehículo")
+        col1, col2, col3 = st.columns(3)
+        bastidor = col1.text_input("Bastidor (VIN)").upper()
+        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+        st.info(f"Fecha de Matriculación: {fecha_hoy}")
+        
+        # Sección 2: Titular
+        st.subheader("2. Datos del Titular")
+        tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
+        c4, c5 = st.columns(2)
+        dni = c4.text_input("DNI/NIE/CIF")
+        if tipo_titular == "Persona Física":
+            nombre = c5.text_input("Nombre")
+            ape1 = c4.text_input("1er Apellido")
+            ape2 = c5.text_input("2do Apellido")
+            f_nac = c4.date_input("Fecha de Nacimiento")
+        else:
+            razon_social = c5.text_input("Razón Social")
 
-            # 2. TITULAR
-            st.subheader("2. Datos del Titular")
-            c4, c5 = st.columns(2)
-            dni_t = c4.text_input("NIF / CIF Titular").upper().replace(" ", "")
-            nom_t = c5.text_input("Nombre o Razón Social").upper()
+        # Sección 3: Domicilio
+        st.subheader("3. Domicilio (Titular y Vehículo)")
+        c6, c7, c8 = st.columns(3)
+        prov_sel = c6.selectbox("Provincia", list(PROVINCIAS.keys()), format_func=lambda x: PROVINCIAS[x])
+        munis_disp = MUNICIPIOS.get(prov_sel, [])
+        muni_data = c7.selectbox("Municipio", munis_disp, format_func=lambda x: x[0])
+        nombre_muni, cod_ine, cp = muni_data
+        c8.text(f"CP: {cp}")
+        
+        calle = st.text_input("Calle / Vía")
+        num = st.text_input("Número")
+
+        if st.form_submit_button("Generar archivo .ga.xml"):
+            # Generación de ID único (similar al formato del archivo real)
+            id_doc = f"sg-{random.getrandbits(64):x}"
             
-            # 3. DIRECCIÓN TITULAR
-            st.subheader("3. Dirección del Titular")
-            c6, c7, c8 = st.columns([3, 1, 1])
-            calle_t = c6.text_input("Calle / Vía Titular").upper()
-            num_t = c7.text_input("Nº").upper()
-            cp_t = c8.text_input("C.P.")
-            c9, c10 = st.columns(2)
-            muni_t = c9.text_input("Municipio Titular").upper()
-            prov_t = c10.selectbox("Provincia Titular", list(PROVINCIAS.keys()), key="pt")
-
-            # 4. DIRECCIÓN VEHÍCULO (Tutela fiscal)
-            st.subheader("4. Dirección de Matriculación (Vehículo)")
-            usa_misma = st.checkbox("Usar la misma dirección del titular", value=True)
-            
-            if not usa_misma:
-                v1, v2, v3 = st.columns([3, 1, 1])
-                calle_v = v1.text_input("Calle Vehículo").upper()
-                num_v = v2.text_input("Nº Vehículo")
-                cp_v = v3.text_input("C.P. Vehículo")
-                v4, v5 = st.columns(2)
-                muni_v = v4.text_input("Municipio Vehículo").upper()
-                prov_v = v5.selectbox("Provincia Vehículo", list(PROVINCIAS.keys()), key="pv")
-            else:
-                calle_v, num_v, cp_v, muni_v, prov_v = calle_t, num_t, cp_t, muni_t, prov_t
-
-            # 5. IMPUESTOS
-            st.subheader("5. Impuestos")
-            i1, i2 = st.columns(2)
-            iedmt = i1.text_input("Referencia Mod. 576").upper()
-            exento_ivtm = i2.selectbox("Exención IVTM", ["NO EXENTO", "EXENTO", "BONIFICADO"])
-
-            if st.form_submit_button("Enviar Matriculación"):
-                if not bastidor or not dni_t:
-                    st.error("Bastidor y DNI son obligatorios.")
-                else:
-                    # Generamos XML con etiquetas estándar para evitar el error "Núm doc (1)"
-                    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+            xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
-    <MATRICULACION>
+    <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
         <JEFATURA>BA</JEFATURA>
         <NUMERO_PROFESIONAL>00292</NUMERO_PROFESIONAL>
-        <FECHA_PRESENTACION>{datetime.now().strftime("%d/%m/%Y")}</FECHA_PRESENTACION>
+        <FECHA_PRESENTACION>{fecha_hoy}</FECHA_PRESENTACION>
         <NUMERO_EXPEDIENTE>SIGA.{random.randint(1000000, 9999999)}</NUMERO_EXPEDIENTE>
         <DATOS_VEHICULO>
-            <BASTIDOR>{bastidor}</BASTIDOR>
-            <NIVE>{nive}</NIVE>
-            <FABRICACION_ITV>{itv_fab if itv_fab else 'EMPTY_VALUE'}</FABRICACION_ITV>
+            <NUMERO_BASTIDOR>{bastidor}</NUMERO_BASTIDOR>
+            <FECHA_MATRICULACION>{fecha_hoy}</FECHA_MATRICULACION>
             <DIRECCION_VEHICULO>
-                <CALLE>{calle_v}</CALLE>
-                <NUMERO>{num_v}</NUMERO>
-                <CP>{cp_v}</CP>
-                <MUNICIPIO>{muni_v}</MUNICIPIO>
-                <PROVINCIA>{PROVINCIAS[prov_v]}</PROVINCIA>
+                <PROVINCIA_VEHICULO>{prov_sel}</PROVINCIA_VEHICULO>
+                <MUNICIPIO_VEHICULO>{nombre_muni}</MUNICIPIO_VEHICULO>
+                <CP_VEHICULO>{cp}</CP_VEHICULO>
+                <DOMICILIO_VEHICULO>{calle}</DOMICILIO_VEHICULO>
+                <NUMERO_DIRECCION_VEHICULO>{num}</NUMERO_DIRECCION_VEHICULO>
+                <MUNICIPIO_VEHICULO_INE>{cod_ine}</MUNICIPIO_VEHICULO_INE>
+                <TIPO_VIA_DIRECCION_VEHICULO>CALLE</TIPO_VIA_DIRECCION_VEHICULO>
             </DIRECCION_VEHICULO>
         </DATOS_VEHICULO>
         <DATOS_TITULAR>
-            <DNI_TITULAR>{dni_t}</DNI_TITULAR>
-            <NOMBRE_TITULAR>{nom_t}</NOMBRE_TITULAR>
+            <DNI_TITULAR>{dni}</DNI_TITULAR>
+            <NOMBRE_TITULAR>{nombre if tipo_titular == 'Persona Física' else razon_social}</NOMBRE_TITULAR>
             <DIRECCION_TITULAR>
-                <CALLE>{calle_t}</CALLE>
-                <NUMERO>{num_t}</NUMERO>
-                <CP>{cp_t}</CP>
-                <MUNICIPIO>{muni_t}</MUNICIPIO>
-                <PROVINCIA>{PROVINCIAS[prov_t]}</PROVINCIA>
+                <PROVINCIA_TITULAR>{prov_sel}</PROVINCIA_TITULAR>
+                <MUNICIPIO_TITULAR>{nombre_muni}</MUNICIPIO_TITULAR>
+                <CP_TITULAR>{cp}</CP_TITULAR>
+                <NOMBRE_VIA_DIRECCION_TITULAR>{calle}</NOMBRE_VIA_DIRECCION_TITULAR>
+                <NUMERO_DIRECCION_TITULAR>{num}</NUMERO_DIRECCION_TITULAR>
             </DIRECCION_TITULAR>
         </DATOS_TITULAR>
-        <IMPUESTOS>
-            <REFERENCIA_IEDMT>{iedmt}</REFERENCIA_IEDMT>
-            <EXENTO_IVTM>{exento_ivtm}</EXENTO_IVTM>
-        </IMPUESTOS>
+        <NUMERO_DOCUMENTO>{id_doc}</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
-                    datos_sol = {"concesionario": conc_sol, "email_usuario": email_sol}
-                    if enviar_email(f"matri_{bastidor}.ga.xml", xml_content, datos_sol, "Matriculacion"):
-                        st.success("✅ Matriculación enviada con éxito.")
-
-    elif opcion == "PROVISIONAL":
-        st.info("Complete los datos para el justificante provisional.")
-        # Aquí se mantiene la estructura simple que ya tenías para provisionales
-        with st.form("form_prov"):
-            mat = st.text_input("Matrícula").upper()
-            dni_p = st.text_input("DNI Adquirente").upper()
-            if st.form_submit_button("Enviar Provisional"):
-                st.success("Provisional enviado.")
-
-else:
-    st.warning("Introduzca sus datos de identificación para habilitar los formularios.")
+            st.download_button("Descargar .ga.xml", xml_content, file_name=f"matricula_{bastidor}.ga.xml")
