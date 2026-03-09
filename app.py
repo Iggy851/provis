@@ -5,6 +5,11 @@ import random
 st.set_page_config(page_title="Gestoría Nogales - Matriculación Pro", layout="wide")
 st.title("🚗 GENERADOR XML MATRICULACIÓN")
 
+# Inicializar sesión
+if 'xml_generado' not in st.session_state:
+    st.session_state['xml_generado'] = None
+    st.session_state['nombre_archivo'] = None
+
 with st.form("form_matri_pro"):
     # Datos básicos
     bastidor = st.text_input("Bastidor (17 caracteres)").upper()
@@ -27,22 +32,21 @@ with st.form("form_matri_pro"):
         razon_social = st.text_input("Razón Social")
         fecha_nac = None
         sexo = "X"
+        nombre, ape1, ape2 = "", "", ""
 
-    if st.form_submit_button("GENERAR XML"):
-        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        
-        # Preparación de datos
-        nombre_t = nombre if tipo_titular == "Persona Física" else ""
-        ape1_t = ape1 if tipo_titular == "Persona Física" else ""
-        ape2_t = ape2 if tipo_titular == "Persona Física" else ""
-        razon_t = razon_social if tipo_titular == "Empresa" else ""
-        f_nac_str = fecha_nac.strftime("%d/%m/%Y") if fecha_nac else ""
+    # Botón de proceso (dentro del form)
+    submitted = st.form_submit_button("GENERAR XML")
 
-        # XML Estructurado con los campos mínimos necesarios
-        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+if submitted:
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+    f_nac_str = fecha_nac.strftime("%d/%m/%Y") if fecha_nac else ""
+    razon_t = razon_social if tipo_titular == "Empresa" else ""
+
+    # XML con estructura mínima pero jerarquía completa
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
-        <JEFATURA>BA</JEFATURA>
+        <JEFATURA>{prov}</JEFATURA>
         <NUMERO_PROFESIONAL>00292</NUMERO_PROFESIONAL>
         <FECHA_PRESENTACION>{fecha_hoy}</FECHA_PRESENTACION>
         <NUMERO_EXPEDIENTE>SIGA.{random.randint(1000000, 9999999)}</NUMERO_EXPEDIENTE>
@@ -57,9 +61,9 @@ with st.form("form_matri_pro"):
         <DATOS_TITULAR>
             <DNI_TITULAR>{nif}</DNI_TITULAR>
             <RAZON_SOCIAL_TITULAR>{razon_t}</RAZON_SOCIAL_TITULAR>
-            <APELLIDO1_TITULAR>{ape1_t}</APELLIDO1_TITULAR>
-            <APELLIDO2_TITULAR>{ape2_t}</APELLIDO2_TITULAR>
-            <NOMBRE_TITULAR>{nombre_t}</NOMBRE_TITULAR>
+            <APELLIDO1_TITULAR>{ape1}</APELLIDO1_TITULAR>
+            <APELLIDO2_TITULAR>{ape2}</APELLIDO2_TITULAR>
+            <NOMBRE_TITULAR>{nombre}</NOMBRE_TITULAR>
             <FECHA_NACIMIENTO_TITULAR>{f_nac_str}</FECHA_NACIMIENTO_TITULAR>
             <SEXO_TITULAR>{sexo}</SEXO_TITULAR>
             <DIRECCION_TITULAR>
@@ -72,5 +76,15 @@ with st.form("form_matri_pro"):
         <NUMERO_DOCUMENTO>sg-{random.getrandbits(32):x}</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
-        
-        st.download_button("DESCAGAR .GA.XML", xml_content, f"matricula_{bastidor}.ga.xml", mime="text/xml")
+    
+    st.session_state['xml_generado'] = xml_content
+    st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
+
+# Botón de descarga (FUERA del form)
+if st.session_state['xml_generado']:
+    st.download_button(
+        label="⬇️ DESCARGAR .GA.XML", 
+        data=st.session_state['xml_generado'], 
+        file_name=st.session_state['nombre_archivo'], 
+        mime="text/xml"
+    )
