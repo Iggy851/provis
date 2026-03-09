@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 import random
 
-# --- CONFIGURACIÓN DE DATOS ---
+# --- CONFIGURACIÓN ---
 PROVINCIAS = {"BA": "BADAJOZ", "MA": "MADRID", "SE": "SEVILLA"} 
 MUNICIPIOS = {
     "BA": [("BADAJOZ", "06015", "06005")],
@@ -13,75 +13,55 @@ MUNICIPIOS = {
 st.set_page_config(page_title="Gestoría Nogales - Trámites", layout="wide")
 st.title("📂 GESTORÍA NOGALES - PORTAL DE TRÁMITES")
 
-# Inicialización de sesión para persistencia de archivos
 if 'xml_generado' not in st.session_state:
     st.session_state['xml_generado'] = None
     st.session_state['nombre_archivo'] = None
 
-# --- MENÚ DE NAVEGACIÓN ---
-opcion = st.sidebar.radio("Selecciona el trámite:", ["PROVISIONALES", "MATRICULACIONES"])
-st.sidebar.divider()
+opcion = st.sidebar.radio("Selecciona:", ["PROVISIONALES", "MATRICULACIONES"])
 
-# ==========================================
-# 1. TRÁMITE DE PROVISIONALES
-# ==========================================
-if opcion == "PROVISIONALES":
-    st.header("Generación de Justificante Provisional")
-    with st.form("form_prov"):
-        st.info("Formulario para cambios de titularidad (Provisionales)")
-        matricula = st.text_input("Matrícula").upper()
-        if st.form_submit_button("Generar Provisional"):
-            st.success(f"Provisional para {matricula} generado (Simulación).")
-
-# ==========================================
-# 2. TRÁMITE DE MATRICULACIONES
-# ==========================================
-else:
-    st.header("Solicitud de Matriculación")
+if opcion == "MATRICULACIONES":
+    st.header("Solicitud de Matriculación (Prueba: Solo dígitos DNI)")
     
     with st.form("form_matri_completo"):
-        # Sección Vehículo
-        st.subheader("1. Datos del Vehículo")
         col1, col2, col3 = st.columns(3)
         bastidor = col1.text_input("Bastidor (VIN)").upper()
         fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        st.write(f"Fecha de Matriculación: **{fecha_hoy}**")
         
-        # Sección Titular
-        st.subheader("2. Datos del Titular")
         tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
-        c4, c5 = st.columns(2)
-        dni = c4.text_input("DNI/NIE/CIF")
-        nombre = c5.text_input("Nombre o Razón Social")
+        dni_completo = st.text_input("DNI/NIE/CIF completo")
+        nombre = st.text_input("Nombre / Razón Social")
+        ape1 = st.text_input("Apellido 1")
+        ape2 = st.text_input("Apellido 2")
         
-        # Sección Domicilio
-        st.subheader("3. Domicilio")
-        c6, c7, c8 = st.columns(3)
-        prov_sel = c6.selectbox("Provincia", list(PROVINCIAS.keys()), format_func=lambda x: PROVINCIAS[x])
-        munis_disp = MUNICIPIOS.get(prov_sel, [])
-        muni_data = c7.selectbox("Municipio", munis_disp, format_func=lambda x: x[0])
+        prov_sel = st.selectbox("Provincia", list(PROVINCIAS.keys()), format_func=lambda x: PROVINCIAS[x])
+        muni_data = st.selectbox("Municipio", MUNICIPIOS.get(prov_sel, []), format_func=lambda x: x[0])
         nombre_muni, cod_ine, cp = muni_data
-        c8.text(f"CP: {cp}")
-        
         calle = st.text_input("Calle / Vía")
         num = st.text_input("Número")
 
-        # Botón de envío
         submit = st.form_submit_button("Generar archivo .ga.xml")
         
     if submit:
-        # Lógica de generación XML (Ajustada al estándar de tu archivo .ga.xml)
-        id_doc = f"sg-{random.getrandbits(64):x}"
+        # LÓGICA DE LIMPIEZA: Extraer solo los primeros 8 dígitos numéricos del DNI
+        # Usamos filter(str.isdigit, ...) para asegurar que solo se pasen números
+        dni_limpio = "".join(filter(str.isdigit, dni_completo))[:8]
+        
         xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
         <JEFATURA>BA</JEFATURA>
+        <SUCURSAL/>
         <NUMERO_PROFESIONAL>00292</NUMERO_PROFESIONAL>
         <FECHA_PRESENTACION>{fecha_hoy}</FECHA_PRESENTACION>
         <NUMERO_EXPEDIENTE>SIGA.{random.randint(1000000, 9999999)}</NUMERO_EXPEDIENTE>
         <DATOS_VEHICULO>
-            <NUMERO_BASTIDOR>{bastidor}</NUMERO_BASTIDOR>
+            <FABRICACION_ITV/>
             <FECHA_MATRICULACION>{fecha_hoy}</FECHA_MATRICULACION>
+            <MATRICULA_TEMPORAL/>
+            <FECHA_ITV/>
+            <TIPO_INSPECCION_ITV>M</TIPO_INSPECCION_ITV>
+            <NIVE/>
+            <NUMERO_BASTIDOR>{bastidor}</NUMERO_BASTIDOR>
             <DIRECCION_VEHICULO>
                 <PROVINCIA_VEHICULO>{prov_sel}</PROVINCIA_VEHICULO>
                 <MUNICIPIO_VEHICULO>{nombre_muni}</MUNICIPIO_VEHICULO>
@@ -93,7 +73,9 @@ else:
             </DIRECCION_VEHICULO>
         </DATOS_VEHICULO>
         <DATOS_TITULAR>
-            <DNI_TITULAR>{dni}</DNI_TITULAR>
+            <DNI_TITULAR>{dni_limpio}</DNI_TITULAR>
+            <APELLIDO1_TITULAR>{ape1}</APELLIDO1_TITULAR>
+            <APELLIDO2_TITULAR>{ape2}</APELLIDO2_TITULAR>
             <NOMBRE_TITULAR>{nombre}</NOMBRE_TITULAR>
             <DIRECCION_TITULAR>
                 <PROVINCIA_TITULAR>{prov_sel}</PROVINCIA_TITULAR>
@@ -103,19 +85,13 @@ else:
                 <NUMERO_DIRECCION_TITULAR>{num}</NUMERO_DIRECCION_TITULAR>
             </DIRECCION_TITULAR>
         </DATOS_TITULAR>
-        <NUMERO_DOCUMENTO>{id_doc}</NUMERO_DOCUMENTO>
+        <NUMERO_DOCUMENTO>sg-{random.getrandbits(40):x}</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
         
         st.session_state['xml_generado'] = xml_content
         st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
 
-    # Botón de descarga fuera del formulario
     if st.session_state['xml_generado']:
-        st.success("✅ Archivo generado correctamente.")
-        st.download_button(
-            label="⬇️ Descargar archivo .ga.xml",
-            data=st.session_state['xml_generado'],
-            file_name=st.session_state['nombre_archivo'],
-            mime="text/xml"
-        )
+        st.success("✅ Archivo generado con DNI truncado a 8 dígitos.")
+        st.download_button("⬇️ Descargar archivo .ga.xml", st.session_state['xml_generado'], st.session_state['nombre_archivo'], mime="text/xml")
