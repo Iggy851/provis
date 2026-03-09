@@ -2,8 +2,7 @@ import streamlit as st
 from datetime import datetime
 import random
 
-# --- CONFIGURACIÓN DE DATOS (Optimizado) ---
-# En un futuro, estos datos vendrán de una base de datos o JSON externo
+# --- CONFIGURACIÓN DE DATOS ---
 PROVINCIAS = {"BA": "BADAJOZ", "MA": "MADRID", "SE": "SEVILLA"} 
 MUNICIPIOS = {
     "BA": [("BADAJOZ", "06015", "06005")],
@@ -14,7 +13,12 @@ MUNICIPIOS = {
 st.set_page_config(page_title="Gestoría Nogales - Trámites", layout="wide")
 st.title("📂 GESTORÍA NOGALES - PORTAL DE TRÁMITES")
 
-# --- MENÚ PRINCIPAL ---
+# Inicialización de sesión para persistencia de archivos
+if 'xml_generado' not in st.session_state:
+    st.session_state['xml_generado'] = None
+    st.session_state['nombre_archivo'] = None
+
+# --- MENÚ DE NAVEGACIÓN ---
 opcion = st.sidebar.radio("Selecciona el trámite:", ["PROVISIONALES", "MATRICULACIONES"])
 st.sidebar.divider()
 
@@ -24,39 +28,34 @@ st.sidebar.divider()
 if opcion == "PROVISIONALES":
     st.header("Generación de Justificante Provisional")
     with st.form("form_prov"):
-        # (Aquí mantienes tu lógica actual de provisionales)
-        st.write("Formulario de Provisionales activo.")
+        st.info("Formulario para cambios de titularidad (Provisionales)")
+        matricula = st.text_input("Matrícula").upper()
         if st.form_submit_button("Generar Provisional"):
-            st.success("Provisional generado.")
+            st.success(f"Provisional para {matricula} generado (Simulación).")
 
 # ==========================================
 # 2. TRÁMITE DE MATRICULACIONES
 # ==========================================
 else:
     st.header("Solicitud de Matriculación")
+    
     with st.form("form_matri_completo"):
-        # Sección 1: Vehículo
+        # Sección Vehículo
         st.subheader("1. Datos del Vehículo")
         col1, col2, col3 = st.columns(3)
         bastidor = col1.text_input("Bastidor (VIN)").upper()
         fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        st.info(f"Fecha de Matriculación: {fecha_hoy}")
+        st.write(f"Fecha de Matriculación: **{fecha_hoy}**")
         
-        # Sección 2: Titular
+        # Sección Titular
         st.subheader("2. Datos del Titular")
         tipo_titular = st.radio("Tipo de Titular", ["Persona Física", "Empresa"], horizontal=True)
         c4, c5 = st.columns(2)
         dni = c4.text_input("DNI/NIE/CIF")
-        if tipo_titular == "Persona Física":
-            nombre = c5.text_input("Nombre")
-            ape1 = c4.text_input("1er Apellido")
-            ape2 = c5.text_input("2do Apellido")
-            f_nac = c4.date_input("Fecha de Nacimiento")
-        else:
-            razon_social = c5.text_input("Razón Social")
-
-        # Sección 3: Domicilio
-        st.subheader("3. Domicilio (Titular y Vehículo)")
+        nombre = c5.text_input("Nombre o Razón Social")
+        
+        # Sección Domicilio
+        st.subheader("3. Domicilio")
         c6, c7, c8 = st.columns(3)
         prov_sel = c6.selectbox("Provincia", list(PROVINCIAS.keys()), format_func=lambda x: PROVINCIAS[x])
         munis_disp = MUNICIPIOS.get(prov_sel, [])
@@ -67,11 +66,13 @@ else:
         calle = st.text_input("Calle / Vía")
         num = st.text_input("Número")
 
-        if st.form_submit_button("Generar archivo .ga.xml"):
-            # Generación de ID único (similar al formato del archivo real)
-            id_doc = f"sg-{random.getrandbits(64):x}"
-            
-            xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+        # Botón de envío
+        submit = st.form_submit_button("Generar archivo .ga.xml")
+        
+    if submit:
+        # Lógica de generación XML (Ajustada al estándar de tu archivo .ga.xml)
+        id_doc = f"sg-{random.getrandbits(64):x}"
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
         <JEFATURA>BA</JEFATURA>
@@ -93,7 +94,7 @@ else:
         </DATOS_VEHICULO>
         <DATOS_TITULAR>
             <DNI_TITULAR>{dni}</DNI_TITULAR>
-            <NOMBRE_TITULAR>{nombre if tipo_titular == 'Persona Física' else razon_social}</NOMBRE_TITULAR>
+            <NOMBRE_TITULAR>{nombre}</NOMBRE_TITULAR>
             <DIRECCION_TITULAR>
                 <PROVINCIA_TITULAR>{prov_sel}</PROVINCIA_TITULAR>
                 <MUNICIPIO_TITULAR>{nombre_muni}</MUNICIPIO_TITULAR>
@@ -105,4 +106,16 @@ else:
         <NUMERO_DOCUMENTO>{id_doc}</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
-            st.download_button("Descargar .ga.xml", xml_content, file_name=f"matricula_{bastidor}.ga.xml")
+        
+        st.session_state['xml_generado'] = xml_content
+        st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
+
+    # Botón de descarga fuera del formulario
+    if st.session_state['xml_generado']:
+        st.success("✅ Archivo generado correctamente.")
+        st.download_button(
+            label="⬇️ Descargar archivo .ga.xml",
+            data=st.session_state['xml_generado'],
+            file_name=st.session_state['nombre_archivo'],
+            mime="text/xml"
+        )
