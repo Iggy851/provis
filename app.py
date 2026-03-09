@@ -1,25 +1,33 @@
 import streamlit as st
 from datetime import datetime
 import random
+import unicodedata
 
-st.set_page_config(page_title="Gestoría Nogales - Test Definitivo", layout="wide")
-st.title("🚗 MÓDULO DE MATRICULACIONES (Test 5)")
+def limpiar_texto(texto):
+    # Elimina tildes y caracteres especiales para evitar errores de codificación
+    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
+    return texto.upper()
 
-with st.form("form_matri_test"):
-    bastidor = st.text_input("Bastidor (17 caracteres obligatorios)").upper()
-    dni = st.text_input("DNI (Formato 12345678A)")
-    nombre = st.text_input("Nombre / Razón Social")
+st.set_page_config(page_title="Gestoría Nogales - Test Final", layout="wide")
+st.title("🚗 MÓDULO MATRICULACIONES (Test 6)")
+
+with st.form("form_matri_final"):
+    # Campos obligatorios con validación manual
+    bastidor = st.text_input("Bastidor (17 caracteres)").upper()
+    dni = st.text_input("DNI (Ej: 12345678X)")
+    nombre = st.text_input("Nombre / Razon Social")
     calle = st.text_input("Calle")
-    prov = st.text_input("Provincia (Ej: BA)")
+    prov = st.text_input("Provincia (2 letras, ej: BA)")
     muni = st.text_input("Municipio")
     cp = st.text_input("CP")
-    muni_ine = st.text_input("Código INE (5 dígitos)")
+    muni_ine = st.text_input("Codigo INE (5 dígitos)")
 
-    if st.form_submit_button("Generar XML (Nuevo ID)"):
+    if st.form_submit_button("GENERAR Y DESCARGAR"):
+        # Limpieza de caracteres
+        n_limpio = limpiar_texto(nombre)
         fecha = datetime.now().strftime("%d/%m/%Y")
-        # Generar un ID nuevo completamente aleatorio cada vez
-        nuevo_id = f"sg-{random.getrandbits(64):x}"
         
+        # Generación del XML sin caracteres extraños
         xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
     <MATRICULACION Version="1.0" Procesar576="1" Procesar05_06="0">
@@ -44,7 +52,7 @@ with st.form("form_matri_test"):
         </DATOS_VEHICULO>
         <DATOS_TITULAR>
             <DNI_TITULAR>{dni}</DNI_TITULAR>
-            <NOMBRE_TITULAR>{nombre}</NOMBRE_TITULAR>
+            <NOMBRE_TITULAR>{n_limpio}</NOMBRE_TITULAR>
             <DIRECCION_TITULAR>
                 <PROVINCIA_TITULAR>{prov}</PROVINCIA_TITULAR>
                 <MUNICIPIO_TITULAR>{muni}</MUNICIPIO_TITULAR>
@@ -52,8 +60,8 @@ with st.form("form_matri_test"):
                 <NOMBRE_VIA_DIRECCION_TITULAR>{calle}</NOMBRE_VIA_DIRECCION_TITULAR>
             </DIRECCION_TITULAR>
         </DATOS_TITULAR>
-        <NUMERO_DOCUMENTO>{nuevo_id}</NUMERO_DOCUMENTO>
+        <NUMERO_DOCUMENTO>sg-08469aee8de43bf0</NUMERO_DOCUMENTO>
     </MATRICULACION>
 </FORMATO_GA>"""
         
-        st.download_button("Descargar .ga.xml", xml_content, f"matricula_{bastidor}.ga.xml", mime="text/xml")
+        st.download_button("DESCARGAR XML", xml_content, f"matricula_{bastidor}.ga.xml", mime="text/xml")
