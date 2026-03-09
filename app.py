@@ -8,14 +8,13 @@ def limpiar_texto(texto):
     return texto.upper()
 
 st.set_page_config(page_title="Gestoría Nogales - Matriculaciones", layout="wide")
-st.title("🚗 MÓDULO DE MATRICULACIONES")
+st.title("🚗 MÓDULO DE MATRICULACIONES (Simplificado)")
 
-# Inicializar estado para guardar el XML
 if 'xml_data' not in st.session_state:
     st.session_state['xml_data'] = None
     st.session_state['nombre_archivo'] = None
 
-with st.form("form_matri_final"):
+with st.form("form_matri_simple"):
     bastidor = st.text_input("Bastidor (17 caracteres)").upper()
     dni = st.text_input("DNI (Ej: 12345678X)")
     nombre = st.text_input("Nombre / Razón Social")
@@ -23,14 +22,15 @@ with st.form("form_matri_final"):
     prov = st.text_input("Provincia (Ej: BA)")
     muni = st.text_input("Municipio")
     cp = st.text_input("CP")
-    muni_ine = st.text_input("Código INE (5 dígitos)")
-
-    # Al pulsar el botón, guardamos en la sesión, NO descargamos
-    submitted = st.form_submit_button("GENERAR DATOS")
+    
+    submitted = st.form_submit_button("GENERAR XML")
 
 if submitted:
-    n_limpio = limpiar_texto(nombre)
+    # Código INE por defecto (ajusta este valor si necesitas uno específico para Badajoz)
+    ine_default = "06015" 
+    
     fecha = datetime.now().strftime("%d/%m/%Y")
+    n_limpio = limpiar_texto(nombre)
     
     xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <FORMATO_GA>
@@ -50,7 +50,7 @@ if submitted:
                 <MUNICIPIO_VEHICULO>{muni}</MUNICIPIO_VEHICULO>
                 <CP_VEHICULO>{cp}</CP_VEHICULO>
                 <DOMICILIO_VEHICULO>{calle}</DOMICILIO_VEHICULO>
-                <MUNICIPIO_VEHICULO_INE>{muni_ine}</MUNICIPIO_VEHICULO_INE>
+                <MUNICIPIO_VEHICULO_INE>{ine_default}</MUNICIPIO_VEHICULO_INE>
                 <TIPO_VIA_DIRECCION_VEHICULO>CALLE</TIPO_VIA_DIRECCION_VEHICULO>
             </DIRECCION_VEHICULO>
         </DATOS_VEHICULO>
@@ -71,12 +71,6 @@ if submitted:
     st.session_state['xml_data'] = xml_content
     st.session_state['nombre_archivo'] = f"matricula_{bastidor}.ga.xml"
 
-# El botón de descarga va FUERA del formulario
 if st.session_state['xml_data']:
-    st.success("✅ Datos generados correctamente.")
-    st.download_button(
-        "⬇️ DESCARGAR .GA.XML", 
-        st.session_state['xml_data'], 
-        st.session_state['nombre_archivo'], 
-        mime="text/xml"
-    )
+    st.success("✅ Datos generados.")
+    st.download_button("⬇️ DESCARGAR .GA.XML", st.session_state['xml_data'], st.session_state['nombre_archivo'], mime="text/xml")
